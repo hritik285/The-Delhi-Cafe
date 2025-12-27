@@ -40,7 +40,9 @@ const App: React.FC = () => {
   const tokenClientRef = useRef<any>(null);
 
   useEffect(() => {
+    // High-pitched notification sound for noisy kitchen environments
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audioRef.current.load();
   }, []);
 
   useEffect(() => {
@@ -60,14 +62,13 @@ const App: React.FC = () => {
     
     if (isGisLoaded && clientId && google?.accounts?.oauth2) {
       try {
-        // Clear previous client if it exists to avoid stale configs
         tokenClientRef.current = google.accounts.oauth2.initTokenClient({
           client_id: clientId,
           scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets',
           prompt: 'consent select_account',
           callback: async (response: any) => {
             if (response.error) {
-              setError(`Google Error: ${response.error_description || response.error}`);
+              setError(`Auth Flow Error: ${response.error_description || response.error}`);
               setShowTroubleshooting(true);
               return;
             }
@@ -92,17 +93,16 @@ const App: React.FC = () => {
               setActiveView(View.ORDERS);
             } catch (err) {
               console.error('Failed to fetch user info', err);
-              setError('Signed in, but profile fetch failed.');
+              setError('Connected, but profile load failed.');
             }
           },
           error_callback: (err: any) => {
-            setError(`Config Error: ${err.message || 'Verification Failed'}`);
+            setError(`Handshake Failed: ${err.message || 'Check Console Origins'}`);
             setShowTroubleshooting(true);
           }
         });
       } catch (e: any) {
-        console.error("GIS Init Error:", e);
-        setError("Init failed. Check Client ID type.");
+        setError("Init failure. Verify Client ID type.");
       }
     } else {
       tokenClientRef.current = null;
@@ -111,7 +111,7 @@ const App: React.FC = () => {
 
   const handleLogin = () => {
     if (!settings.googleClientId) {
-      setError("Enter Client ID in Settings first.");
+      setError("Provide Client ID in Settings.");
       setActiveView(View.SETTINGS);
       return;
     }
@@ -120,11 +120,11 @@ const App: React.FC = () => {
       try {
         tokenClientRef.current.requestAccessToken();
       } catch (e: any) {
-        setError(`Request failed: ${e.message}`);
+        setError(`Login failed: ${e.message}`);
         setShowTroubleshooting(true);
       }
     } else {
-      setError("Login system failed to load. Use the guide below.");
+      setError("Login system not ready. Verify Web App Client ID.");
       setShowTroubleshooting(true);
     }
   };
@@ -167,7 +167,7 @@ const App: React.FC = () => {
           if (newlyArrived.length > 0) {
             setNewOrderIds(prev => Array.from(new Set([...prev, ...newlyArrived])));
             if (settings.soundEnabled && audioRef.current) audioRef.current.play().catch(() => {});
-            if (settings.vibrateEnabled && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            if (settings.vibrateEnabled && navigator.vibrate) navigator.vibrate([300, 100, 300]);
             await serviceRef.current.updateMeta('last_seen_order_timestamp', latestOrder.created_at);
           }
         } else if (!metaTimestamp) {
@@ -176,7 +176,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       if (err.status === 401) setAuth({ accessToken: null, user: null });
-      else setError('Google Sheets sync failed.');
+      else setError('Sheets Database Sync Unreachable.');
     } finally {
       setIsRefreshing(false);
     }
@@ -197,7 +197,10 @@ const App: React.FC = () => {
       await serviceRef.current.updateOrderStatus(id, status);
       setOrders(prev => prev.map(o => o.order_id === id ? { ...o, order_status: status } : o));
       setNewOrderIds(prev => prev.filter(nid => nid !== id));
-    } catch (err) { setError('Update failed.'); } finally { setIsRefreshing(false); }
+      if (status === 'completed' && selectedOrder?.order_id === id) {
+        setSelectedOrder(null);
+      }
+    } catch (err) { setError('Status update failed.'); } finally { setIsRefreshing(false); }
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -213,89 +216,78 @@ const App: React.FC = () => {
       if (!auth.accessToken) {
         return (
           <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-6 text-center overflow-y-auto no-scrollbar">
-            {/* Origin Diagnostic Badge - CRITICAL FOR FIXING ERROR 400 */}
-            <div className="mb-6 animate-bounce">
-               <div className="inline-flex flex-col bg-rose-600 px-4 py-2 rounded-2xl shadow-xl border-2 border-white/20">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-white/60 mb-1">Critical: Use this Origin</span>
-                  <span className="text-[11px] font-mono font-black text-white">{currentOrigin}</span>
+            {/* Origin Diagnostic Badge - CRITICAL FIX FOR REDIRECT ISSUES */}
+            <div className="mb-8 animate-in fade-in zoom-in duration-1000">
+               <div className="inline-flex flex-col bg-rose-600 px-6 py-3 rounded-3xl shadow-2xl border-2 border-white/10">
+                  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/70 mb-1">Diagnostic Origin</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[12px] font-mono font-black text-white">{currentOrigin}</span>
+                    <button onClick={() => copyToClipboard(currentOrigin, 'ORIGIN')} className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" /></svg>
+                    </button>
+                  </div>
                </div>
+               <p className="text-[9px] text-zinc-600 mt-3 font-black uppercase tracking-widest italic">Add this to Google Console "JavaScript Origins"</p>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] max-w-sm w-full shadow-2xl relative overflow-hidden shrink-0">
-              <div className="absolute -top-20 -right-20 w-40 h-40 bg-rose-600/10 rounded-full blur-3xl" />
+            <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-[3.5rem] max-w-sm w-full shadow-2xl relative overflow-hidden shrink-0">
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-rose-600/10 rounded-full blur-[80px]" />
               <div className="relative z-10">
-                <div className="bg-rose-600 w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-black mx-auto mb-6 shadow-lg shadow-rose-600/30">D</div>
-                <h2 className="text-2xl font-black mb-2 tracking-tight text-white uppercase italic">Delhi Cafe</h2>
-                <p className="text-zinc-500 text-sm mb-8 leading-relaxed font-black uppercase tracking-widest text-[10px] opacity-60">Admin Terminal</p>
+                <div className="bg-rose-600 w-20 h-20 rounded-[1.75rem] flex items-center justify-center text-4xl font-black mx-auto mb-8 shadow-2xl shadow-rose-600/40">D</div>
+                <h2 className="text-3xl font-black mb-3 tracking-tighter text-white uppercase italic">Delhi Cafe</h2>
+                <p className="text-zinc-500 text-[10px] mb-10 leading-relaxed font-black uppercase tracking-[0.5em] opacity-50">Terminal v2.0</p>
                 {error && (
-                  <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-[11px] font-bold text-left leading-normal">
-                    <p className="font-black uppercase text-[10px] mb-2 tracking-widest text-rose-500">SYSTEM ALERT: INVALID REQUEST</p>
+                  <div className="mb-8 p-5 bg-rose-500/10 border border-rose-500/20 rounded-3xl text-rose-400 text-[11px] font-bold text-left leading-relaxed shadow-inner">
+                    <p className="font-black uppercase text-[9px] mb-2 tracking-[0.3em] text-rose-500">Security Handshake Blocked</p>
                     {error}
                   </div>
                 )}
                 <div className="space-y-4">
-                  <button onClick={handleLogin} disabled={!isGisLoaded} className={`w-full py-5 rounded-[1.5rem] font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.95] ${isGisLoaded ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}>
-                    {isGisLoaded ? "Retry Auth Flow" : "Initialising..."}
+                  <button onClick={handleLogin} disabled={!isGisLoaded} className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.3em] text-[11px] flex items-center justify-center gap-3 transition-all shadow-2xl active:scale-90 ${isGisLoaded ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}`}>
+                    {isGisLoaded ? "Authorise Access" : "Loading GIS..."}
                   </button>
-                  <button onClick={() => setShowTroubleshooting(!showTroubleshooting)} className="w-full text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] hover:text-rose-500 transition-colors py-2">
-                    {showTroubleshooting ? 'Close Guide' : 'Fix Error 400 Guide'}
+                  <button onClick={() => setShowTroubleshooting(!showTroubleshooting)} className="w-full text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] hover:text-rose-500 transition-colors py-4">
+                    {showTroubleshooting ? 'Hide Setup Guide' : 'Need Setup Help?'}
                   </button>
-                  <button onClick={() => setActiveView(View.SETTINGS)} className="text-zinc-700 text-[10px] font-black uppercase tracking-[0.3em] hover:text-zinc-500 transition-colors">Manual Config</button>
                 </div>
               </div>
             </div>
 
             {showTroubleshooting && (
-              <div className="mt-6 bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] max-w-sm w-full text-left animate-in slide-in-from-bottom-6 duration-500 relative shadow-2xl">
-                {copyFeedback && <div className="absolute top-4 right-8 px-3 py-1 bg-emerald-500 text-black text-[10px] font-black rounded-full animate-bounce shadow-lg">COPIED</div>}
-                <h4 className="text-rose-500 font-black text-[12px] uppercase tracking-[0.25em] mb-6 border-b border-zinc-800 pb-3 flex items-center gap-3">
-                  <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" /> Final Fix List
+              <div className="mt-8 bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] max-w-sm w-full text-left animate-in slide-in-from-bottom-8 duration-700 relative shadow-2xl">
+                {copyFeedback && <div className="absolute top-6 right-10 px-4 py-1.5 bg-emerald-500 text-black text-[10px] font-black rounded-full animate-bounce shadow-xl">COPIED</div>}
+                <h4 className="text-rose-500 font-black text-[13px] uppercase tracking-[0.3em] mb-8 border-b border-zinc-800 pb-4 flex items-center gap-4">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shadow-[0_0_10px_rgba(225,29,72,0.8)]" /> 
+                  Action Checklist
                 </h4>
                 <div className="space-y-8">
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center gap-3">
-                      <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px]">1</span>
-                      Origin Whitelist
+                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center gap-4">
+                      <span className="w-6 h-6 rounded-full bg-zinc-800 text-white flex items-center justify-center text-[11px] font-black border border-zinc-700">1</span>
+                      Client Type
                     </p>
-                    <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl space-y-3">
-                      <p className="text-[11px] text-zinc-300 leading-normal font-bold uppercase tracking-tight">Paste this exactly in Google Console's "JavaScript Origins":</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-black/40 px-3 py-2 rounded-xl font-mono text-[10px] text-emerald-400 overflow-x-auto whitespace-nowrap border border-zinc-800/50">
-                          {currentOrigin}
-                        </div>
-                        <button onClick={() => copyToClipboard(currentOrigin, 'ORIGIN')} className="shrink-0 p-2 bg-emerald-600 rounded-lg text-black active:scale-90">
-                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h6a2 2 0 002-2v-2" /></svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center gap-3">
-                      <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px]">2</span>
-                      Web App Type
-                    </p>
-                    <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-2xl">
-                      <p className="text-[11px] text-zinc-200 leading-normal font-bold">
-                        Ensure you are using a <span className="text-rose-500">"Web application"</span> client. "Android" clients will NOT work here.
+                    <div className="p-5 bg-rose-500/5 border border-rose-500/10 rounded-3xl">
+                      <p className="text-[11px] text-zinc-300 leading-normal font-bold">
+                        DO NOT use "Android". Delete it and create a NEW credential choosing <span className="text-rose-500">"Web application"</span>.
                       </p>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center gap-3">
-                      <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px]">3</span>
-                      Browser Cookies
+                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center justify-between">
+                      <span className="flex items-center gap-4">
+                        <span className="w-6 h-6 rounded-full bg-zinc-800 text-white flex items-center justify-center text-[11px] font-black border border-zinc-700">2</span>
+                        JavaScript Origins
+                      </span>
                     </p>
-                    <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
-                      <p className="text-[11px] text-zinc-300 leading-normal">
-                        If using Incognito/Private mode, you must <b>"Allow third-party cookies"</b> or the Google popup will fail.
-                      </p>
+                    <div className="p-5 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl space-y-3">
+                      <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-tight">Paste the origin from the badge above into this field in Google Console.</p>
                     </div>
                   </div>
-                  <button onClick={() => window.open('https://console.cloud.google.com/apis/credentials', '_blank')} className="w-full py-4 bg-rose-600 rounded-[1.2rem] text-[11px] font-black uppercase tracking-[0.3em] text-white shadow-xl shadow-rose-600/30 hover:bg-rose-500 transition-all">Open Google Console</button>
+                  <button onClick={() => window.open('https://console.cloud.google.com/apis/credentials', '_blank')} className="w-full py-5 bg-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] text-white shadow-2xl shadow-rose-900/30 hover:bg-rose-500 transition-all active:scale-95">Open Credentials Screen</button>
                 </div>
               </div>
             )}
-            <p className="mt-8 text-zinc-700 text-[10px] font-black uppercase tracking-[0.4em] shrink-0 opacity-40">System Awaiting Correct Origin</p>
+            <p className="mt-12 text-zinc-800 text-[10px] font-black uppercase tracking-[0.5em] shrink-0 italic opacity-40">The Delhi Cafe Terminal Online</p>
           </div>
         );
       }
@@ -303,11 +295,11 @@ const App: React.FC = () => {
       if (!settings.spreadsheetId) {
         return (
           <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-8 text-center">
-            <div className="bg-rose-600/10 border border-rose-500/20 p-8 rounded-[3.5rem] max-w-sm shadow-2xl relative overflow-hidden">
-               <div className="absolute -top-10 -left-10 w-24 h-24 bg-rose-600/10 rounded-full blur-3xl" />
-              <h2 className="text-2xl font-black text-white mb-4 tracking-tight uppercase italic">Terminal Online</h2>
-              <p className="text-zinc-400 text-sm mb-8 leading-relaxed font-medium">Authorised as <b>{auth.user?.name}</b>.<br/><br/>Link your <b>Spreadsheet ID</b> in the settings to activate the order database.</p>
-              <button onClick={() => setActiveView(View.SETTINGS)} className="w-full py-5 bg-rose-600 rounded-[1.5rem] font-black uppercase tracking-widest text-xs text-white shadow-2xl shadow-rose-600/30 active:scale-95 transition-all">Link Database</button>
+            <div className="bg-zinc-900 border border-zinc-800 p-12 rounded-[4rem] max-w-sm shadow-2xl relative overflow-hidden">
+               <div className="absolute -top-12 -left-12 w-32 h-32 bg-emerald-600/10 rounded-full blur-[60px]" />
+              <h2 className="text-3xl font-black text-white mb-6 tracking-tighter uppercase italic">Identity Verified</h2>
+              <p className="text-zinc-500 text-sm mb-10 leading-relaxed font-bold">Authorised as <b>{auth.user?.name}</b>.<br/><br/>Now enter your <b>Spreadsheet ID</b> in the config menu to link the order database.</p>
+              <button onClick={() => setActiveView(View.SETTINGS)} className="w-full py-6 bg-rose-600 rounded-[2rem] font-black uppercase tracking-[0.3em] text-[11px] text-white shadow-2xl shadow-rose-900/40 active:scale-90 transition-all">Setup Spreadsheet</button>
             </div>
           </div>
         );
@@ -316,7 +308,19 @@ const App: React.FC = () => {
 
     return (
       <Layout activeView={activeView} onViewChange={setActiveView} isRefreshing={isRefreshing} auth={auth}>
-        {error && <div className="sticky top-0 z-40 bg-rose-600 text-white text-[10px] font-black uppercase tracking-[0.2em] py-3 text-center shadow-2xl animate-pulse">{error}</div>}
+        {error && <div className="sticky top-0 z-40 bg-rose-600 text-white text-[10px] font-black uppercase tracking-[0.4em] py-4 text-center shadow-2xl animate-pulse">{error}</div>}
+        
+        {/* Manual Refresh Trigger for POS feel */}
+        <div className="fixed bottom-24 right-6 z-30">
+           <button 
+             onClick={fetchData} 
+             disabled={isRefreshing}
+             className={`p-4 rounded-full bg-zinc-900 border border-zinc-800 shadow-2xl text-rose-500 active:scale-75 transition-all ${isRefreshing ? 'animate-spin opacity-50' : ''}`}
+           >
+             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+           </button>
+        </div>
+
         {activeView === View.ORDERS && <Dashboard orders={orders} onUpdateStatus={updateOrderStatus} onSelectOrder={setSelectedOrder} newOrderIds={newOrderIds} />}
         {activeView === View.MENU && <MenuEditor items={menuItems} onUpdate={async (item) => { if (serviceRef.current) { await serviceRef.current.updateMenuItem(item); setMenuItems(prev => prev.map(m => m.item_id === item.item_id ? item : m)); } }} />}
         {activeView === View.SETTINGS && <Settings settings={settings} updateSettings={(s) => setSettings(prev => ({ ...prev, ...s }))} auth={auth} onLogout={handleLogout} onLogin={handleLogin} />}
