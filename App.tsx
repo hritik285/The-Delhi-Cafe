@@ -40,7 +40,6 @@ const App: React.FC = () => {
   const tokenClientRef = useRef<any>(null);
 
   useEffect(() => {
-    // High-pitched notification sound for noisy kitchen environments
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     audioRef.current.load();
   }, []);
@@ -92,7 +91,6 @@ const App: React.FC = () => {
               setShowTroubleshooting(false);
               setActiveView(View.ORDERS);
             } catch (err) {
-              console.error('Failed to fetch user info', err);
               setError('Connected, but profile load failed.');
             }
           },
@@ -104,8 +102,6 @@ const App: React.FC = () => {
       } catch (e: any) {
         setError("Init failure. Verify Client ID type.");
       }
-    } else {
-      tokenClientRef.current = null;
     }
   }, [isGisLoaded, settings.googleClientId]);
 
@@ -115,14 +111,8 @@ const App: React.FC = () => {
       setActiveView(View.SETTINGS);
       return;
     }
-
     if (tokenClientRef.current) {
-      try {
-        tokenClientRef.current.requestAccessToken();
-      } catch (e: any) {
-        setError(`Login failed: ${e.message}`);
-        setShowTroubleshooting(true);
-      }
+      tokenClientRef.current.requestAccessToken();
     } else {
       setError("Login system not ready. Verify Web App Client ID.");
       setShowTroubleshooting(true);
@@ -143,8 +133,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (auth.accessToken && settings.spreadsheetId) {
       serviceRef.current = new GoogleSheetsService(settings.spreadsheetId.trim(), auth.accessToken);
-    } else {
-      serviceRef.current = null;
     }
   }, [auth.accessToken, settings.spreadsheetId]);
 
@@ -158,25 +146,24 @@ const App: React.FC = () => {
       const metaTimestamp = await serviceRef.current.getMeta('last_seen_order_timestamp');
       setOrders(fetchedOrders);
       setMenuItems(fetchedMenu);
+      
       const latestOrder = fetchedOrders[0];
-      if (latestOrder) {
-        if (metaTimestamp && latestOrder.created_at > metaTimestamp) {
-          const newlyArrived = fetchedOrders
-            .filter(o => o.created_at > metaTimestamp)
-            .map(o => o.order_id);
-          if (newlyArrived.length > 0) {
-            setNewOrderIds(prev => Array.from(new Set([...prev, ...newlyArrived])));
-            if (settings.soundEnabled && audioRef.current) audioRef.current.play().catch(() => {});
-            if (settings.vibrateEnabled && navigator.vibrate) navigator.vibrate([300, 100, 300]);
-            await serviceRef.current.updateMeta('last_seen_order_timestamp', latestOrder.created_at);
-          }
-        } else if (!metaTimestamp) {
+      if (latestOrder && metaTimestamp && latestOrder.created_at > metaTimestamp) {
+        const newlyArrived = fetchedOrders
+          .filter(o => o.created_at > metaTimestamp)
+          .map(o => o.order_id);
+        if (newlyArrived.length > 0) {
+          setNewOrderIds(prev => Array.from(new Set([...prev, ...newlyArrived])));
+          if (settings.soundEnabled && audioRef.current) audioRef.current.play().catch(() => {});
+          if (settings.vibrateEnabled && navigator.vibrate) navigator.vibrate([300, 100, 300]);
           await serviceRef.current.updateMeta('last_seen_order_timestamp', latestOrder.created_at);
         }
+      } else if (latestOrder && !metaTimestamp) {
+        await serviceRef.current.updateMeta('last_seen_order_timestamp', latestOrder.created_at);
       }
     } catch (err: any) {
       if (err.status === 401) setAuth({ accessToken: null, user: null });
-      else setError('Sheets Database Sync Unreachable.');
+      else setError('Sheets Sync Failed.');
     } finally {
       setIsRefreshing(false);
     }
@@ -197,9 +184,6 @@ const App: React.FC = () => {
       await serviceRef.current.updateOrderStatus(id, status);
       setOrders(prev => prev.map(o => o.order_id === id ? { ...o, order_status: status } : o));
       setNewOrderIds(prev => prev.filter(nid => nid !== id));
-      if (status === 'completed' && selectedOrder?.order_id === id) {
-        setSelectedOrder(null);
-      }
     } catch (err) { setError('Status update failed.'); } finally { setIsRefreshing(false); }
   };
 
@@ -210,44 +194,55 @@ const App: React.FC = () => {
   };
 
   const currentOrigin = window.location.origin;
+  const currentUrl = window.location.href;
 
   const renderContent = () => {
     if (activeView !== View.SETTINGS) {
       if (!auth.accessToken) {
         return (
           <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-6 text-center overflow-y-auto no-scrollbar">
-            {/* Origin Diagnostic Badge - CRITICAL FIX FOR REDIRECT ISSUES */}
-            <div className="mb-8 animate-in fade-in zoom-in duration-1000">
-               <div className="inline-flex flex-col bg-rose-600 px-6 py-3 rounded-3xl shadow-2xl border-2 border-white/10">
-                  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/70 mb-1">Diagnostic Origin</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[12px] font-mono font-black text-white">{currentOrigin}</span>
-                    <button onClick={() => copyToClipboard(currentOrigin, 'ORIGIN')} className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" /></svg>
-                    </button>
+            {/* GitHub Specific Diagnostic */}
+            <div className="mb-8 w-full max-w-sm">
+               <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-2xl">
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 mb-4">GitHub Pages Diagnostic</p>
+                  
+                  <div className="space-y-4">
+                    <div className="text-left">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-black text-rose-500 uppercase">1. Bare Origin (Add this)</span>
+                        <button onClick={() => copyToClipboard(currentOrigin, 'ORIGIN')} className="text-[9px] text-zinc-400 underline">Copy</button>
+                      </div>
+                      <div className="bg-black/40 px-3 py-2 rounded-xl font-mono text-[10px] text-zinc-400 border border-zinc-800 break-all">{currentOrigin}</div>
+                    </div>
+
+                    <div className="text-left">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-black text-emerald-500 uppercase">2. Redirect URI (Add this too)</span>
+                        <button onClick={() => copyToClipboard(currentUrl, 'URL')} className="text-[9px] text-zinc-400 underline">Copy</button>
+                      </div>
+                      <div className="bg-black/40 px-3 py-2 rounded-xl font-mono text-[10px] text-zinc-400 border border-zinc-800 break-all">{currentUrl}</div>
+                    </div>
                   </div>
                </div>
-               <p className="text-[9px] text-zinc-600 mt-3 font-black uppercase tracking-widest italic">Add this to Google Console "JavaScript Origins"</p>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-[3.5rem] max-w-sm w-full shadow-2xl relative overflow-hidden shrink-0">
+            <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-[3.5rem] max-w-sm w-full shadow-2xl relative overflow-hidden">
               <div className="absolute -top-24 -right-24 w-48 h-48 bg-rose-600/10 rounded-full blur-[80px]" />
               <div className="relative z-10">
                 <div className="bg-rose-600 w-20 h-20 rounded-[1.75rem] flex items-center justify-center text-4xl font-black mx-auto mb-8 shadow-2xl shadow-rose-600/40">D</div>
                 <h2 className="text-3xl font-black mb-3 tracking-tighter text-white uppercase italic">Delhi Cafe</h2>
-                <p className="text-zinc-500 text-[10px] mb-10 leading-relaxed font-black uppercase tracking-[0.5em] opacity-50">Terminal v2.0</p>
+                <p className="text-zinc-500 text-[10px] mb-10 leading-relaxed font-black uppercase tracking-[0.5em] opacity-50">Web Terminal</p>
                 {error && (
-                  <div className="mb-8 p-5 bg-rose-500/10 border border-rose-500/20 rounded-3xl text-rose-400 text-[11px] font-bold text-left leading-relaxed shadow-inner">
-                    <p className="font-black uppercase text-[9px] mb-2 tracking-[0.3em] text-rose-500">Security Handshake Blocked</p>
+                  <div className="mb-8 p-5 bg-rose-500/10 border border-rose-500/20 rounded-3xl text-rose-400 text-[11px] font-bold text-left shadow-inner">
                     {error}
                   </div>
                 )}
                 <div className="space-y-4">
                   <button onClick={handleLogin} disabled={!isGisLoaded} className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.3em] text-[11px] flex items-center justify-center gap-3 transition-all shadow-2xl active:scale-90 ${isGisLoaded ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}`}>
-                    {isGisLoaded ? "Authorise Access" : "Loading GIS..."}
+                    {isGisLoaded ? "Sign In with Google" : "System Booting..."}
                   </button>
                   <button onClick={() => setShowTroubleshooting(!showTroubleshooting)} className="w-full text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] hover:text-rose-500 transition-colors py-4">
-                    {showTroubleshooting ? 'Hide Setup Guide' : 'Need Setup Help?'}
+                    {showTroubleshooting ? 'Hide Guide' : 'GitHub Fix Guide'}
                   </button>
                 </div>
               </div>
@@ -255,52 +250,22 @@ const App: React.FC = () => {
 
             {showTroubleshooting && (
               <div className="mt-8 bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] max-w-sm w-full text-left animate-in slide-in-from-bottom-8 duration-700 relative shadow-2xl">
-                {copyFeedback && <div className="absolute top-6 right-10 px-4 py-1.5 bg-emerald-500 text-black text-[10px] font-black rounded-full animate-bounce shadow-xl">COPIED</div>}
-                <h4 className="text-rose-500 font-black text-[13px] uppercase tracking-[0.3em] mb-8 border-b border-zinc-800 pb-4 flex items-center gap-4">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shadow-[0_0_10px_rgba(225,29,72,0.8)]" /> 
-                  Action Checklist
-                </h4>
+                {copyFeedback && <div className="absolute top-6 right-10 px-4 py-1.5 bg-emerald-500 text-black text-[10px] font-black rounded-full shadow-xl">COPIED</div>}
+                <h4 className="text-rose-500 font-black text-[13px] uppercase tracking-[0.3em] mb-8 border-b border-zinc-800 pb-4">GitHub Deployment Guide</h4>
                 <div className="space-y-8">
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center gap-4">
-                      <span className="w-6 h-6 rounded-full bg-zinc-800 text-white flex items-center justify-center text-[11px] font-black border border-zinc-700">1</span>
-                      Client Type
-                    </p>
-                    <div className="p-5 bg-rose-500/5 border border-rose-500/10 rounded-3xl">
-                      <p className="text-[11px] text-zinc-300 leading-normal font-bold">
-                        DO NOT use "Android". Delete it and create a NEW credential choosing <span className="text-rose-500">"Web application"</span>.
-                      </p>
-                    </div>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase">1. Application Type</p>
+                    <p className="text-[11px] text-zinc-300 leading-normal">Delete any "Android" or "iOS" credentials. You MUST create a <b>Web Application</b> client.</p>
                   </div>
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center justify-between">
-                      <span className="flex items-center gap-4">
-                        <span className="w-6 h-6 rounded-full bg-zinc-800 text-white flex items-center justify-center text-[11px] font-black border border-zinc-700">2</span>
-                        JavaScript Origins
-                      </span>
-                    </p>
-                    <div className="p-5 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl space-y-3">
-                      <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-tight">Paste the origin from the badge above into this field in Google Console.</p>
-                    </div>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase">2. Authorized Origins</p>
+                    <p className="text-[11px] text-zinc-300 leading-normal">Google strictly forbids subfolders in origins. Add only <code>{currentOrigin}</code> to the origins list.</p>
                   </div>
-                  <button onClick={() => window.open('https://console.cloud.google.com/apis/credentials', '_blank')} className="w-full py-5 bg-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] text-white shadow-2xl shadow-rose-900/30 hover:bg-rose-500 transition-all active:scale-95">Open Credentials Screen</button>
+                  <button onClick={() => window.open('https://console.cloud.google.com/apis/credentials', '_blank')} className="w-full py-5 bg-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] text-white shadow-2xl shadow-rose-900/30 hover:bg-rose-500 transition-all">Go to Cloud Console</button>
                 </div>
               </div>
             )}
-            <p className="mt-12 text-zinc-800 text-[10px] font-black uppercase tracking-[0.5em] shrink-0 italic opacity-40">The Delhi Cafe Terminal Online</p>
-          </div>
-        );
-      }
-
-      if (!settings.spreadsheetId) {
-        return (
-          <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-8 text-center">
-            <div className="bg-zinc-900 border border-zinc-800 p-12 rounded-[4rem] max-w-sm shadow-2xl relative overflow-hidden">
-               <div className="absolute -top-12 -left-12 w-32 h-32 bg-emerald-600/10 rounded-full blur-[60px]" />
-              <h2 className="text-3xl font-black text-white mb-6 tracking-tighter uppercase italic">Identity Verified</h2>
-              <p className="text-zinc-500 text-sm mb-10 leading-relaxed font-bold">Authorised as <b>{auth.user?.name}</b>.<br/><br/>Now enter your <b>Spreadsheet ID</b> in the config menu to link the order database.</p>
-              <button onClick={() => setActiveView(View.SETTINGS)} className="w-full py-6 bg-rose-600 rounded-[2rem] font-black uppercase tracking-[0.3em] text-[11px] text-white shadow-2xl shadow-rose-900/40 active:scale-90 transition-all">Setup Spreadsheet</button>
-            </div>
+            <p className="mt-12 text-zinc-800 text-[10px] font-black uppercase tracking-[0.5em] shrink-0 italic opacity-40">Ready for Global Deployment</p>
           </div>
         );
       }
@@ -310,7 +275,6 @@ const App: React.FC = () => {
       <Layout activeView={activeView} onViewChange={setActiveView} isRefreshing={isRefreshing} auth={auth}>
         {error && <div className="sticky top-0 z-40 bg-rose-600 text-white text-[10px] font-black uppercase tracking-[0.4em] py-4 text-center shadow-2xl animate-pulse">{error}</div>}
         
-        {/* Manual Refresh Trigger for POS feel */}
         <div className="fixed bottom-24 right-6 z-30">
            <button 
              onClick={fetchData} 

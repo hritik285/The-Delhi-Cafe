@@ -1,5 +1,18 @@
 {
   "name": "The Delhi Cafe Admin",
-  "description": "A professional POS-style admin dashboard for managing restaurant orders and menu directly via Google Sheets.",
+  "short_name": "TDC Admin",
+  "description": "Professional POS Admin for The Delhi Cafe",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#e11d48",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
   "requestFramePermissions": []
 }
