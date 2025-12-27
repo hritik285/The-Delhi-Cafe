@@ -1,0 +1,5 @@
+{
+  "name": "The Delhi Cafe Admin",
+  "description": "A professional POS-style admin dashboard for managing restaurant orders and menu directly via Google Sheets.",
+  "requestFramePermissions": []
+}
