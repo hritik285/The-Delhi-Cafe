@@ -1,7 +1,7 @@
 {
-  "name": "The Delhi Cafe Admin",
-  "short_name": "TDC Admin",
-  "description": "Professional POS Admin for The Delhi Cafe",
+  "name": "The Delhi Cafe Management",
+  "short_name": "TDC Management",
+  "description": "Professional Web POS for The Delhi Cafe Operations",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#09090b",

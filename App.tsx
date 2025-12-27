@@ -91,30 +91,30 @@ const App: React.FC = () => {
               setShowTroubleshooting(false);
               setActiveView(View.ORDERS);
             } catch (err) {
-              setError('Connected, but profile load failed.');
+              setError('Secure session established, but profile load failed.');
             }
           },
           error_callback: (err: any) => {
-            setError(`Handshake Failed: ${err.message || 'Check Console Origins'}`);
+            setError(`Security Handshake Failed: ${err.message || 'Check Authorized Origins'}`);
             setShowTroubleshooting(true);
           }
         });
       } catch (e: any) {
-        setError("Init failure. Verify Client ID type.");
+        setError("Init failure. Verify OAuth Client ID.");
       }
     }
   }, [isGisLoaded, settings.googleClientId]);
 
   const handleLogin = () => {
     if (!settings.googleClientId) {
-      setError("Provide Client ID in Settings.");
+      setError("Please configure your Google Client ID in Settings.");
       setActiveView(View.SETTINGS);
       return;
     }
     if (tokenClientRef.current) {
       tokenClientRef.current.requestAccessToken();
     } else {
-      setError("Login system not ready. Verify Web App Client ID.");
+      setError("Login system initialising. Please wait a moment.");
       setShowTroubleshooting(true);
     }
   };
@@ -163,7 +163,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       if (err.status === 401) setAuth({ accessToken: null, user: null });
-      else setError('Sheets Sync Failed.');
+      else setError('Live Sync Interrupted. Check connection.');
     } finally {
       setIsRefreshing(false);
     }
@@ -184,7 +184,7 @@ const App: React.FC = () => {
       await serviceRef.current.updateOrderStatus(id, status);
       setOrders(prev => prev.map(o => o.order_id === id ? { ...o, order_status: status } : o));
       setNewOrderIds(prev => prev.filter(nid => nid !== id));
-    } catch (err) { setError('Status update failed.'); } finally { setIsRefreshing(false); }
+    } catch (err) { setError('Update failed.'); } finally { setIsRefreshing(false); }
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -194,78 +194,91 @@ const App: React.FC = () => {
   };
 
   const currentOrigin = window.location.origin;
-  const currentUrl = window.location.href;
 
   const renderContent = () => {
     if (activeView !== View.SETTINGS) {
       if (!auth.accessToken) {
         return (
-          <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-6 text-center overflow-y-auto no-scrollbar">
-            {/* GitHub Specific Diagnostic */}
-            <div className="mb-8 w-full max-w-sm">
-               <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-2xl">
-                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 mb-4">GitHub Pages Diagnostic</p>
-                  
-                  <div className="space-y-4">
-                    <div className="text-left">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[9px] font-black text-rose-500 uppercase">1. Bare Origin (Add this)</span>
-                        <button onClick={() => copyToClipboard(currentOrigin, 'ORIGIN')} className="text-[9px] text-zinc-400 underline">Copy</button>
-                      </div>
-                      <div className="bg-black/40 px-3 py-2 rounded-xl font-mono text-[10px] text-zinc-400 border border-zinc-800 break-all">{currentOrigin}</div>
-                    </div>
-
-                    <div className="text-left">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[9px] font-black text-emerald-500 uppercase">2. Redirect URI (Add this too)</span>
-                        <button onClick={() => copyToClipboard(currentUrl, 'URL')} className="text-[9px] text-zinc-400 underline">Copy</button>
-                      </div>
-                      <div className="bg-black/40 px-3 py-2 rounded-xl font-mono text-[10px] text-zinc-400 border border-zinc-800 break-all">{currentUrl}</div>
-                    </div>
-                  </div>
-               </div>
-            </div>
-
-            <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-[3.5rem] max-w-sm w-full shadow-2xl relative overflow-hidden">
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-rose-600/10 rounded-full blur-[80px]" />
+          <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-6 text-center">
+            <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 p-12 rounded-[3rem] shadow-2xl relative overflow-hidden">
+              {/* Decorative Glow */}
+              <div className="absolute -top-24 -right-24 w-64 h-64 bg-rose-600/10 rounded-full blur-[100px]" />
+              <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-600/5 rounded-full blur-[100px]" />
+              
               <div className="relative z-10">
-                <div className="bg-rose-600 w-20 h-20 rounded-[1.75rem] flex items-center justify-center text-4xl font-black mx-auto mb-8 shadow-2xl shadow-rose-600/40">D</div>
-                <h2 className="text-3xl font-black mb-3 tracking-tighter text-white uppercase italic">Delhi Cafe</h2>
-                <p className="text-zinc-500 text-[10px] mb-10 leading-relaxed font-black uppercase tracking-[0.5em] opacity-50">Web Terminal</p>
+                <div className="bg-rose-600 w-24 h-24 rounded-[2rem] flex items-center justify-center text-5xl font-black mx-auto mb-8 shadow-2xl shadow-rose-900/40">D</div>
+                <h2 className="text-4xl font-black mb-2 tracking-tighter text-white uppercase italic">Delhi Cafe</h2>
+                <p className="text-zinc-500 text-[11px] mb-12 leading-relaxed font-black uppercase tracking-[0.6em] opacity-60">Management Dashboard</p>
+                
                 {error && (
-                  <div className="mb-8 p-5 bg-rose-500/10 border border-rose-500/20 rounded-3xl text-rose-400 text-[11px] font-bold text-left shadow-inner">
+                  <div className="mb-10 p-6 bg-rose-500/10 border border-rose-500/20 rounded-3xl text-rose-400 text-xs font-bold text-left shadow-inner">
+                    <p className="font-black uppercase text-[10px] mb-2 tracking-widest text-rose-500">System Notice</p>
                     {error}
                   </div>
                 )}
+                
                 <div className="space-y-4">
-                  <button onClick={handleLogin} disabled={!isGisLoaded} className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.3em] text-[11px] flex items-center justify-center gap-3 transition-all shadow-2xl active:scale-90 ${isGisLoaded ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}`}>
-                    {isGisLoaded ? "Sign In with Google" : "System Booting..."}
+                  <button 
+                    onClick={handleLogin} 
+                    disabled={!isGisLoaded} 
+                    className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-3 transition-all shadow-2xl active:scale-[0.97] ${isGisLoaded ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}`}
+                  >
+                    {isGisLoaded ? "Authorise Secure Login" : "Initialising Dashboard..."}
                   </button>
-                  <button onClick={() => setShowTroubleshooting(!showTroubleshooting)} className="w-full text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] hover:text-rose-500 transition-colors py-4">
-                    {showTroubleshooting ? 'Hide Guide' : 'GitHub Fix Guide'}
+                  <button onClick={() => setShowTroubleshooting(!showTroubleshooting)} className="w-full text-zinc-600 text-[10px] font-black uppercase tracking-[0.4em] hover:text-rose-500 transition-colors py-4">
+                    {showTroubleshooting ? 'Close Guide' : 'Connection Guide'}
                   </button>
                 </div>
               </div>
             </div>
 
             {showTroubleshooting && (
-              <div className="mt-8 bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] max-w-sm w-full text-left animate-in slide-in-from-bottom-8 duration-700 relative shadow-2xl">
-                {copyFeedback && <div className="absolute top-6 right-10 px-4 py-1.5 bg-emerald-500 text-black text-[10px] font-black rounded-full shadow-xl">COPIED</div>}
-                <h4 className="text-rose-500 font-black text-[13px] uppercase tracking-[0.3em] mb-8 border-b border-zinc-800 pb-4">GitHub Deployment Guide</h4>
-                <div className="space-y-8">
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase">1. Application Type</p>
-                    <p className="text-[11px] text-zinc-300 leading-normal">Delete any "Android" or "iOS" credentials. You MUST create a <b>Web Application</b> client.</p>
+              <div className="mt-8 bg-zinc-900 border border-zinc-800 p-10 rounded-[2.5rem] max-w-md w-full text-left animate-in slide-in-from-bottom-8 duration-700 relative shadow-2xl">
+                {copyFeedback && <div className="absolute top-8 right-12 px-5 py-2 bg-emerald-500 text-black text-[10px] font-black rounded-full shadow-xl">COPIED</div>}
+                <h4 className="text-rose-500 font-black text-sm uppercase tracking-[0.4em] mb-10 border-b border-zinc-800 pb-5">Web Console Whitelist</h4>
+                <div className="space-y-10">
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center gap-4">
+                      <span className="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center text-xs font-black border border-zinc-700">1</span>
+                      Domain Authorisation
+                    </p>
+                    <div className="p-6 bg-zinc-950 border border-zinc-800 rounded-3xl space-y-4">
+                      <p className="text-xs text-zinc-400 font-medium leading-relaxed italic">Add this origin to your Google Cloud Console's "Authorized JavaScript origins":</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 bg-black/40 px-4 py-3 rounded-2xl font-mono text-[11px] text-zinc-300 border border-zinc-800/50 break-all select-all">
+                          {currentOrigin}
+                        </div>
+                        <button onClick={() => copyToClipboard(currentOrigin, 'ORIGIN')} className="p-3 bg-zinc-800 rounded-xl hover:bg-zinc-700 active:scale-90 transition-all">
+                          <svg className="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" /></svg>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase">2. Authorized Origins</p>
-                    <p className="text-[11px] text-zinc-300 leading-normal">Google strictly forbids subfolders in origins. Add only <code>{currentOrigin}</code> to the origins list.</p>
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-black text-zinc-500 uppercase flex items-center gap-4">
+                      <span className="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center text-xs font-black border border-zinc-700">2</span>
+                      Web App Protocol
+                    </p>
+                    <p className="text-xs text-zinc-300 leading-normal pl-12 font-medium">Ensure your OAuth client type is <b>"Web application"</b>. Subfolder paths are not allowed in the origins field.</p>
                   </div>
-                  <button onClick={() => window.open('https://console.cloud.google.com/apis/credentials', '_blank')} className="w-full py-5 bg-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] text-white shadow-2xl shadow-rose-900/30 hover:bg-rose-500 transition-all">Go to Cloud Console</button>
+                  <button onClick={() => window.open('https://console.cloud.google.com/apis/credentials', '_blank')} className="w-full py-5 bg-rose-600 rounded-[1.75rem] text-[11px] font-black uppercase tracking-[0.5em] text-white shadow-2xl shadow-rose-900/40 hover:bg-rose-500 transition-all active:scale-[0.98]">Manage Credentials</button>
                 </div>
               </div>
             )}
-            <p className="mt-12 text-zinc-800 text-[10px] font-black uppercase tracking-[0.5em] shrink-0 italic opacity-40">Ready for Global Deployment</p>
+            <p className="mt-12 text-zinc-800 text-[11px] font-black uppercase tracking-[0.6em] shrink-0 italic opacity-50">Enterprise Management System</p>
+          </div>
+        );
+      }
+
+      if (!settings.spreadsheetId) {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-8 text-center">
+            <div className="bg-zinc-900 border border-zinc-800 p-16 rounded-[4rem] max-w-md shadow-2xl relative overflow-hidden">
+               <div className="absolute -top-12 -left-12 w-48 h-48 bg-emerald-600/10 rounded-full blur-[100px]" />
+              <h2 className="text-4xl font-black text-white mb-6 tracking-tighter uppercase italic">Secure Connection</h2>
+              <p className="text-zinc-500 text-sm mb-12 leading-relaxed font-bold">Authorised as <span className="text-zinc-200">{auth.user?.name}</span>.<br/><br/>Link your Cloud Database (Google Sheet) in settings to begin synchronizing orders.</p>
+              <button onClick={() => setActiveView(View.SETTINGS)} className="w-full py-6 bg-rose-600 rounded-[2.5rem] font-black uppercase tracking-[0.4em] text-xs text-white shadow-2xl shadow-rose-900/50 active:scale-[0.97] transition-all">Setup Spreadsheet</button>
+            </div>
           </div>
         );
       }
@@ -273,15 +286,23 @@ const App: React.FC = () => {
 
     return (
       <Layout activeView={activeView} onViewChange={setActiveView} isRefreshing={isRefreshing} auth={auth}>
-        {error && <div className="sticky top-0 z-40 bg-rose-600 text-white text-[10px] font-black uppercase tracking-[0.4em] py-4 text-center shadow-2xl animate-pulse">{error}</div>}
+        {error && (
+          <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] w-full max-w-xs sm:max-w-md px-4">
+            <div className="bg-rose-600 text-white text-[10px] font-black uppercase tracking-[0.5em] py-4 px-6 rounded-2xl shadow-2xl flex items-center justify-center gap-4 animate-in slide-in-from-top-4">
+              <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              {error}
+            </div>
+          </div>
+        )}
         
-        <div className="fixed bottom-24 right-6 z-30">
+        {/* Quick Sync Action */}
+        <div className="fixed bottom-28 right-8 sm:right-12 z-40">
            <button 
              onClick={fetchData} 
              disabled={isRefreshing}
-             className={`p-4 rounded-full bg-zinc-900 border border-zinc-800 shadow-2xl text-rose-500 active:scale-75 transition-all ${isRefreshing ? 'animate-spin opacity-50' : ''}`}
+             className={`p-5 rounded-3xl bg-zinc-900 border border-zinc-800 shadow-2xl text-rose-500 active:scale-90 transition-all hover:bg-zinc-800 ${isRefreshing ? 'animate-spin opacity-50' : ''}`}
            >
-             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
            </button>
         </div>
 
