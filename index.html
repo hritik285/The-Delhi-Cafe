@@ -4,6 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- WhatsApp & Social Media Preview (OpenGraph) -->
+    <meta property="og:title" content="The Delhi Cafe | Management Portal">
+    <meta property="og:description" content="Secure real-time order management and POS system for The Delhi Cafe.">
+    <meta property="og:image" content="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+    <meta property="og:url" content="https://hritik285.github.io/The-Delhi-Cafe/">
+    <meta property="og:type" content="website">
+
+    <!-- Mobile App Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#09090b">
@@ -23,11 +32,11 @@
             -webkit-tap-highlight-color: transparent;
             user-select: none;
             overscroll-behavior-y: contain;
+            background-color: #09090b;
         }
         .mono {
             font-family: 'JetBrains Mono', monospace;
         }
-        /* Hide scrollbars for a cleaner POS look */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -35,7 +44,6 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        /* PWA splash fix */
         @media all and (display-mode: standalone) {
             body {
                 padding-top: env(safe-area-inset-top);
@@ -46,16 +54,18 @@
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
 <body class="bg-zinc-950 text-zinc-100 overflow-hidden">
     <div id="root"></div>
-    <!-- Entry point for the module-based React app -->
-    <script type="module" src="index.tsx"></script>
+    <!-- Vite will handle bundling this relative entry file -->
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
